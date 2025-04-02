@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import pickle
+import numpy as np
 torch.set_default_dtype(torch.float64)
 
 def process_dict(data_dict, state_dict):
@@ -55,15 +56,15 @@ thresholds = { b : 0.5 for b in train_dict.keys() }
 y_dict = { b : torch.ones(len(d[0]), dtype=torch.long) if d[1].argmax() == 1 else torch.zeros(len(d[0]), dtype=torch.long) for b, d in train_dict.items() }
 
 # define hyperparams
-MAX_ITER = 500
+MAX_ITER = 100
 
 # start training
 for i in range(MAX_ITER):
     # train model
     model = LogisticRegression(input_dim=train_dict[list(train_dict.keys())[0]][0].shape[-1], output_dim=2)
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.005)
     loss_fc = torch.nn.CrossEntropyLoss()
-    n_epochs = 500
+    n_epochs = 100
     train(model, optimizer, n_epochs, loss_fc, train_dict, y_dict)
 
     # redefine thresholds and y
@@ -76,13 +77,14 @@ for i in range(MAX_ITER):
         shuffle = scores.argsort(descending=True) # sorting
         new_y[shuffle[:ones]] = 1
         new_y[shuffle[ones:]] = 0
+        y_dict[b] = new_y
         thresholds[b] = float(scores[shuffle[ones - 1]])
 
     # print last model result
     if i == MAX_ITER - 1:
         for b, b_data in test_dict.items():
             # b_threshold = thresholds[b]
-            scores = float(torch.mean(torch.softmax(model(b_data[0]), dim=1), dim=0)[-1])
+            scores = np.mean(torch.softmax(model(b_data[0]), dim=1).argmax(dim=1).numpy())
             print(b, scores)
 
 
